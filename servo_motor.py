@@ -1,28 +1,38 @@
+import pigpio
 from time import sleep
-from gpiozero import Servo
-from gpiozero.pins.lgpio import LGPIOFactory
 
-factory = LGPIOFactory()
+pi = pigpio.pi()
 
-servo = Servo(5, pin_factory=factory,
-              min_pulse_width=0.5/1000,
-              max_pulse_width=2.5/1000)
+SERVO_PIN = 5
 
-def move(value):
-    # value: -1 = full left, 0 = center, 1 = full right
-    servo.value = value
+def move(angle):
+    # Convert angle to pulsewidth
+    # 500 = 0°, 1500 = 90°, 2500 = 180°
+    pulsewidth = 500 + (angle / 180) * 2000
+    pi.set_servo_pulsewidth(SERVO_PIN, pulsewidth)
     sleep(0.5)
 
 try:
-    move(0)      # center
+    print("Center 90")
+    move(90)
     sleep(1)
-    move(-0.1)   # slight left
+
+    print("Left 45")
+    move(45)
     sleep(1)
-    move(0)      # center
+
+    print("Center 90")
+    move(90)
     sleep(1)
-    move(0.1)    # slight right
+
+    print("Right 135")
+    move(135)
     sleep(1)
-    move(0)      # center
+
+    print("Center 90")
+    move(90)
+    sleep(1)
 
 finally:
-    servo.detach()
+    pi.set_servo_pulsewidth(SERVO_PIN, 0)  # stop signal
+    pi.stop()
