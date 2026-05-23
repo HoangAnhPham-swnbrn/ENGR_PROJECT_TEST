@@ -1,38 +1,34 @@
-import pigpio
+import lgpio
 from time import sleep
 
-pi = pigpio.pi()
-
 SERVO_PIN = 5
+h = lgpio.gpiochip_open(0)
 
 def move(angle):
-    # Convert angle to pulsewidth
-    # 500 = 0°, 1500 = 90°, 2500 = 180°
     pulsewidth = 500 + (angle / 180) * 2000
-    pi.set_servo_pulsewidth(SERVO_PIN, pulsewidth)
+    lgpio.tx_servo(h, SERVO_PIN, int(pulsewidth))
     sleep(0.5)
 
 try:
-    print("Center 90")
+    print("Center")
     move(90)
     sleep(1)
 
-    print("Left 45")
+    print("Left")
     move(45)
     sleep(1)
 
-    print("Center 90")
+    print("Center")
     move(90)
     sleep(1)
 
-    print("Right 135")
+    print("Right")
     move(135)
     sleep(1)
 
-    print("Center 90")
+    print("Center")
     move(90)
-    sleep(1)
 
 finally:
-    pi.set_servo_pulsewidth(SERVO_PIN, 0)  # stop signal
-    pi.stop()
+    lgpio.tx_servo(h, SERVO_PIN, 0)
+    lgpio.gpiochip_close(h)
