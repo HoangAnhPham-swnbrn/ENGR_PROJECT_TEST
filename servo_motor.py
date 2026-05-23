@@ -1,13 +1,19 @@
-import lgpio
 from time import sleep
+import RPi.GPIO as GPIO
 
 SERVO_PIN = 5
-h = lgpio.gpiochip_open(0)
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(SERVO_PIN, GPIO.OUT)
+
+servo = GPIO.PWM(SERVO_PIN, 50)
+servo.start(0)
 
 def move(angle):
-    pulsewidth = 500 + (angle / 180) * 2000
-    lgpio.tx_servo(h, SERVO_PIN, int(pulsewidth))
+    duty = 2 + (angle / 18)
+    servo.ChangeDutyCycle(duty)
     sleep(0.5)
+    servo.ChangeDutyCycle(0)
 
 try:
     print("Center")
@@ -29,6 +35,9 @@ try:
     print("Center")
     move(90)
 
+except KeyboardInterrupt:
+    pass
+
 finally:
-    lgpio.tx_servo(h, SERVO_PIN, 0)
-    lgpio.gpiochip_close(h)
+    servo.stop()
+    GPIO.cleanup()
