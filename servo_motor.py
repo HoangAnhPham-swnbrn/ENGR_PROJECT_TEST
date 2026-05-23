@@ -1,34 +1,28 @@
 from time import sleep
-import RPi.GPIO as GPIO
+from gpiozero import Servo
+from gpiozero.pins.lgpio import LGPIOFactory
 
-SERVO_PIN = 5
+factory = LGPIOFactory()
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(SERVO_PIN, GPIO.OUT)
+servo = Servo(5, pin_factory=factory,
+              min_pulse_width=0.5/1000,
+              max_pulse_width=2.5/1000)
 
-servo = GPIO.PWM(SERVO_PIN, 50)
-servo.start(0)
-
-def move(angle):
-    duty = 2 + (angle / 18)
-    servo.ChangeDutyCycle(duty)
+def move(value):
+    # value: -1 = full left, 0 = center, 1 = full right
+    servo.value = value
     sleep(0.5)
-    servo.ChangeDutyCycle(0)
 
 try:
-    move(90)   # center
+    move(0)      # center
     sleep(1)
-    move(85)   # slight left
+    move(-0.1)   # slight left
     sleep(1)
-    move(90)   # center
+    move(0)      # center
     sleep(1)
-    move(95)   # slight right
+    move(0.1)    # slight right
     sleep(1)
-    move(90)   # center
-
-except KeyboardInterrupt:
-    pass
+    move(0)      # center
 
 finally:
-    servo.stop()
-    GPIO.cleanup()
+    servo.detach()
