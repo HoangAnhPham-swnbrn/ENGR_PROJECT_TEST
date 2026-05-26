@@ -1,19 +1,17 @@
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory
 from time import sleep
-import RPi.GPIO as GPIO
 
-SERVO_PIN = 19  # Changed from 5 to 19 (GPIO19, Pin 35)
+factory = PiGPIOFactory()
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(SERVO_PIN, GPIO.OUT)
-
-servo = GPIO.PWM(SERVO_PIN, 50)
-servo.start(0)
+# min_pulse_width and max_pulse_width tuned for GWS servo
+servo = Servo(19, min_pulse_width=1/1000, max_pulse_width=2/1000, pin_factory=factory)
 
 def move(angle):
-    duty = 2 + (angle / 18)
-    servo.ChangeDutyCycle(duty)
+    # Convert 0-180 to gpiozero's -1 to 1 range
+    value = (angle / 90) - 1
+    servo.value = value
     sleep(0.5)
-    servo.ChangeDutyCycle(0)
 
 try:
     print("Center")
@@ -39,5 +37,4 @@ except KeyboardInterrupt:
     pass
 
 finally:
-    servo.stop()
-    GPIO.cleanup()
+    servo.detach()
