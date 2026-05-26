@@ -1,7 +1,7 @@
 from time import sleep
 import RPi.GPIO as GPIO
 
-SERVO_PIN = 5
+SERVO_PIN = 19  # Changed from 5 to 19 (GPIO19, Pin 35)
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
