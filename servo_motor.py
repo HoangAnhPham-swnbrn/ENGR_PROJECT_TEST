@@ -1,34 +1,29 @@
-import pigpio
+import RPi.GPIO as GPIO
 import time
 
 # --- Configuration ---
 SERVO_PIN = 19
-MIN_PW = 500    # Minimum pulse width in microseconds (0°)
-MAX_PW = 2500   # Maximum pulse width in microseconds (180°)
-MID_PW = 1500   # Midpoint pulse width (90°)
+FREQUENCY = 50  # 50Hz standard for servos
 
 # --- Setup ---
-pi = pigpio.pi()
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(SERVO_PIN, GPIO.OUT)
 
-if not pi.connected:
-    print("Failed to connect to pigpio daemon. Run: sudo systemctl start pigpiod")
-    exit()
+pwm = GPIO.PWM(SERVO_PIN, FREQUENCY)
+pwm.start(0)
 
-def angle_to_pw(angle):
-    """Convert angle (0-180) to pulse width (500-2500 microseconds)"""
-    angle = max(0, min(180, angle))  # Clamp angle to 0-180
-    return int(MIN_PW + (angle / 180) * (MAX_PW - MIN_PW))
+def angle_to_duty(angle):
+    """Convert angle (0-180) to duty cycle (2-12%)"""
+    angle = max(0, min(180, angle))  # Clamp to 0-180
+    return 2 + (angle / 18)
 
 def move(angle):
     """Move servo to specified angle"""
-    pw = angle_to_pw(angle)
-    pi.set_servo_pulsewidth(SERVO_PIN, pw)
-    print(f"Moving to {angle}° (pulse width: {pw}µs)")
+    duty = angle_to_duty(angle)
+    pwm.ChangeDutyCycle(duty)
+    print(f"Moving to {angle}° (duty cycle: {duty:.2f}%)")
     time.sleep(0.5)
-
-def stop_servo():
-    """Stop sending pulses to servo (reduces jitter/heat)"""
-    pi.set_servo_pulsewidth(SERVO_PIN, 0)
+    pwm.ChangeDutyCycle(0)  # Stop jitter
 
 # --- Main ---
 try:
@@ -67,7 +62,6 @@ try:
         try:
             angle = float(user_input)
             move(angle)
-            stop_servo()  # Stop pulse after reaching position
         except ValueError:
             print("Invalid input. Enter a number between 0 and 180.")
 
@@ -75,6 +69,3 @@ except KeyboardInterrupt:
     print("\nInterrupted by user.")
 
 finally:
-    stop_servo()
-    pi.stop()
-    print("Cleanup done.")
