@@ -1,46 +1,34 @@
-import lgpio
 import time
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory # Not needed for Pi 5 default, gpiozero handles it via gpiod
 
-SERVO_PIN = 19
-FREQUENCY = 50
+# Define the GPIO pin connected to the servo signal wire
+SERVO_PIN = 14
 
-chip = lgpio.gpiochip_open(0)
-lgpio.gpio_claim_output(chip, SERVO_PIN)
+# Standard hobby servos expect a pulse width between 1ms and 2ms (0.001s to 0.002s).
+# If your servo doesn't reach full 180 or jitters, adjust min_pulse_width and max_pulse_width.
+my_servo = Servo(SERVO_PIN, min_pulse_width=0.001, max_pulse_width=0.002)
 
-def angle_to_pw(angle):
-    """Convert angle (0-180) to pulse width in microseconds"""
-    angle = max(0, min(180, angle))
-    return int(500 + (angle / 180) * 2000)
-
-def move(angle):
-    pw = angle_to_pw(angle)
-    lgpio.tx_servo(chip, SERVO_PIN, pw, FREQUENCY)
-    print(f"Moving to {angle}°")
-    time.sleep(0.5)
+print("Starting servo sweep program. Press Ctrl+C to exit.")
 
 try:
-    print("Testing Servo...")
+    while True:
+        # Move to minimum position (-1)
+        print("Moving to Minimum")
+        my_servo.min()
+        time.sleep(1.5)
 
-    print("Center")
-    move(90)
-    time.sleep(1)
+        # Move to middle position (0)
+        print("Moving to Middle")
+        my_servo.mid()
+        time.sleep(1.5)
 
-    print("Left")
-    move(0)
-    time.sleep(1)
-
-    print("Right")
-    move(180)
-    time.sleep(1)
-
-    print("Center")
-    move(90)
-    time.sleep(1)
+        # Move to maximum position (1)
+        print("Moving to Maximum")
+        my_servo.max()
+        time.sleep(1.5)
 
 except KeyboardInterrupt:
-    pass
-
-finally:
-    lgpio.tx_servo(chip, SERVO_PIN, 0)
-    lgpio.gpiochip_close(chip)
-    print("Done.")
+    print("\nProgram stopped by user. Cleaning up...")
+    # Detach the servo to stop it from drawing idle power/buzzing
+    my_servo.value = None
