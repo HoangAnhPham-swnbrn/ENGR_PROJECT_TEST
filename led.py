@@ -1,14 +1,23 @@
-from gpiozero import LED
+import RPi.GPIO as GPIO
 import time
 
-led = LED(26)  # Test stop light first
+LED = 26
 
-print("ON")
-led.on()
-time.sleep(2)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(LED, GPIO.OUT)
 
-print("OFF")
-led.off()
-time.sleep(1)
+try:
+    print("LED ON")
+    GPIO.output(LED, GPIO.HIGH)
+    time.sleep(3)
 
-print("Done.")
+    print("LED OFF")
+    GPIO.output(LED, GPIO.LOW)
+
+except KeyboardInterrupt:
+    print("\nStopped by user.")
+
+finally:
+    GPIO.output(LED, GPIO.LOW)
+    GPIO.cleanup()
+    print("Done.")
