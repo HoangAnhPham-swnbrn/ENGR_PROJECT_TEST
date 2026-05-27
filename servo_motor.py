@@ -1,7 +1,7 @@
 import time
 from gpiozero import Servo
 
-SERVO_PIN = 19
+SERVO_PIN = 13
 
 my_servo = Servo(SERVO_PIN, min_pulse_width=0.001, max_pulse_width=0.002)
 
