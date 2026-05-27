@@ -1,23 +1,27 @@
-import RPi.GPIO as GPIO
+import lgpio
 import time
 
-LED = 26
+BLINKER = 26
+BLINK_INTERVAL = 0.5
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(LED, GPIO.OUT)
+chip = lgpio.gpiochip_open(0)
+lgpio.gpio_claim_output(chip, BLINKER)
 
 try:
-    print("LED ON")
-    GPIO.output(LED, GPIO.HIGH)
-    time.sleep(3)
+    print("=== Blinker Test ===")
 
-    print("LED OFF")
-    GPIO.output(LED, GPIO.LOW)
+    for _ in range(10):
+        lgpio.gpio_write(chip, BLINKER, 1)
+        time.sleep(BLINK_INTERVAL)
+        lgpio.gpio_write(chip, BLINKER, 0)
+        time.sleep(BLINK_INTERVAL)
+
+    print("Done.")
 
 except KeyboardInterrupt:
     print("\nStopped by user.")
 
 finally:
-    GPIO.output(LED, GPIO.LOW)
-    GPIO.cleanup()
-    print("Done.")
+    lgpio.gpio_write(chip, BLINKER, 0)
+    lgpio.gpiochip_close(chip)
+    print("Cleanup done.")
