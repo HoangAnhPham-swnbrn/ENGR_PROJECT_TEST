@@ -1,25 +1,14 @@
-import RPi.GPIO as GPIO
+from gpiozero import LED
 import time
 
-BRAKE = 26
+led = LED(26)  # Test stop light first
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(BRAKE, GPIO.OUT)
+print("ON")
+led.on()
+time.sleep(2)
 
-try:
-    print("Stop Light ON")
-    GPIO.output(BRAKE, GPIO.HIGH)
-    time.sleep(3)
+print("OFF")
+led.off()
+time.sleep(1)
 
-    print("Stop Light OFF")
-    GPIO.output(BRAKE, GPIO.LOW)
-    time.sleep(1)
-
-    print("Done.")
-
-except KeyboardInterrupt:
-    print("\nStopped by user.")
-
-finally:
-    GPIO.output(BRAKE, GPIO.LOW)
-    GPIO.cleanup()
+print("Done.")
