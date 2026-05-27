@@ -5,28 +5,30 @@ SERVO_PIN = 19
 
 my_servo = Servo(SERVO_PIN, min_pulse_width=0.001, max_pulse_width=0.002)
 
+def move_to_angle(angle):
+    """Convert angle (0-180) to gpiozero value (-1 to 1)"""
+    value = (angle / 90) - 1
+    my_servo.value = value
+    print(f"Moving to {angle}°")
+    time.sleep(1.5)
+
 print("Starting servo test. Press Ctrl+C to exit.")
 
 try:
-    print("Middle")
-    my_servo.mid()
-    time.sleep(1.5)
+    print("Center (90°)")
+    move_to_angle(90)
 
-    print("Minimum")
-    my_servo.min()
-    time.sleep(1.5)
+    print("Rotate 90° Left (0°)")
+    move_to_angle(0)
 
-    print("Middle")
-    my_servo.mid()
-    time.sleep(1.5)
+    print("Back to Center (90°)")
+    move_to_angle(90)
 
-    print("Maximum")
-    my_servo.max()
-    time.sleep(1.5)
+    print("Rotate 90° Right (180°)")
+    move_to_angle(180)
 
-    print("Middle")
-    my_servo.mid()
-    time.sleep(1.5)
+    print("Back to Center (90°)")
+    move_to_angle(90)
 
 except KeyboardInterrupt:
     print("\nStopped by user.")
