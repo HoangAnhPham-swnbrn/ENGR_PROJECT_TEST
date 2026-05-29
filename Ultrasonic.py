@@ -1,30 +1,27 @@
 from gpiozero import DistanceSensor
 from time import sleep
-import collections
 
-# Adjustable sensitivity settings
-TRIGGER_PIN = 23
-ECHO_PIN = 24
-MAX_RANGE_CM = 400          # HC-SR04 max reliable range
-SAMPLE_SIZE = 5             # readings to average (higher = smoother, slower)
-SAMPLE_WAIT = 0.06          # seconds between readings (min 0.06 for HC-SR04)
+TRIGGER_PIN = 5   # BCM GPIO5 = BOARD Pin 29
+ECHO_PIN = 6      # BCM GPIO6 = BOARD Pin 31
 
-# Distance threshold zones (cm) — adjust these to tune sensitivity
-ZONE_CRITICAL  = 20         # too close, immediate action
-ZONE_NEAR      = 50         # object nearby, alert YOLO
-ZONE_MID       = 150        # object in mid range, passive watch
-ZONE_FAR       = 300        # object far, low priority
+MAX_RANGE_CM = 400
+SAMPLE_SIZE = 5
+SAMPLE_WAIT = 0.06
+
+ZONE_CRITICAL = 20
+ZONE_NEAR     = 50
+ZONE_MID      = 150
+ZONE_FAR      = 300
 
 sensor = DistanceSensor(
     echo=ECHO_PIN,
     trigger=TRIGGER_PIN,
-    max_distance=MAX_RANGE_CM / 100,  # gpiozero uses metres
-    queue_len=SAMPLE_SIZE,            # built-in rolling average
-    partial=True                      # don't block if sensor glitches
+    max_distance=MAX_RANGE_CM / 100,
+    queue_len=SAMPLE_SIZE,
+    partial=True
 )
 
 def get_zone(distance_cm):
-    """Classify distance into sensitivity zones."""
     if distance_cm is None:
         return "UNKNOWN"
     elif distance_cm <= ZONE_CRITICAL:
@@ -39,7 +36,6 @@ def get_zone(distance_cm):
         return "OUT_OF_RANGE"
 
 def get_distance():
-    """Returns smoothed distance in cm, or None if sensor glitches."""
     try:
         d = sensor.distance
         if d is None:
@@ -48,7 +44,6 @@ def get_distance():
     except Exception:
         return None
 
-# --- Standalone test loop (remove when integrating with YOLO) ---
 if __name__ == "__main__":
     print("Ultrasonic sensor running. Ctrl+C to stop.")
     print(f"Zones: CRITICAL<{ZONE_CRITICAL}cm | NEAR<{ZONE_NEAR}cm | "
