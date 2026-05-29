@@ -1,27 +1,73 @@
-import RPi.GPIO as GPIO
+import pigpio
 from time import sleep
 
-GPIO.setmode(GPIO.BOARD)
-GPIO.setwarnings(False)
+pi = pigpio.pi()
 
-# Setup
-GPIO.setup(12, GPIO.OUT)  # PWMA / E1-2
-GPIO.setup(16, GPIO.OUT)  # In1
-GPIO.setup(18, GPIO.OUT)  # In2
+# --- Pin Definitions (BCM for pigpio) ---
+PWMA = 18      # BCM GPIO18 = BOARD Pin 12
+AIN1 = 23      # BCM GPIO23 = BOARD Pin 16
+AIN2 = 24      # BCM GPIO24 = BOARD Pin 18
+PWMB = 17      # BCM GPIO17 = BOARD Pin 11
+BIN1 = 22      # BCM GPIO22 = BOARD Pin 15
+BIN2 = 27      # BCM GPIO27 = BOARD Pin 13
 
-# Force everything HIGH manually
-print("Setting PWMA HIGH...")
-GPIO.output(12, GPIO.HIGH)  # Enable Motor A fully
+SPEED = 150    # 0-255 for pigpio
 
-print("Setting In1 HIGH, In2 LOW — Motor A forward...")
-GPIO.output(16, GPIO.HIGH)
-GPIO.output(18, GPIO.LOW)
+# --- Setup ---
+for pin in [AIN1, AIN2, BIN1, BIN2]:
+    pi.set_mode(pin, pigpio.OUTPUT)
+    pi.write(pin, 0)
 
-sleep(3)
+def motor_a(speed, direction="forward"):
+    if direction == "forward":
+        pi.write(AIN1, 1)
+        pi.write(AIN2, 0)
+    elif direction == "reverse":
+        pi.write(AIN1, 0)
+        pi.write(AIN2, 1)
+    elif direction == "stop":
+        pi.write(AIN1, 0)
+        pi.write(AIN2, 0)
+    pi.set_PWM_dutycycle(PWMA, speed)
 
-print("Stopping...")
-GPIO.output(16, GPIO.LOW)
-GPIO.output(18, GPIO.LOW)
-GPIO.output(12, GPIO.LOW)
+def motor_b(speed, direction="forward"):
+    if direction == "forward":
+        pi.write(BIN1, 1)
+        pi.write(BIN2, 0)
+    elif direction == "reverse":
+        pi.write(BIN1, 0)
+        pi.write(BIN2, 1)
+    elif direction == "stop":
+        pi.write(BIN1, 0)
+        pi.write(BIN2, 0)
+    pi.set_PWM_dutycycle(PWMB, speed)
 
-GPIO.cleanup()
+def stop_all():
+    motor_a(0, "stop")
+    motor_b(0, "stop")
+
+# --- Test ---
+try:
+    print("Forward 3 seconds...")
+    motor_a(SPEED, "forward")
+    motor_b(SPEED, "forward")
+    sleep(3)
+
+    print("Stopping 2 seconds...")
+    stop_all()
+    sleep(2)
+
+    print("Reverse 3 seconds...")
+    motor_a(SPEED, "reverse")
+    motor_b(SPEED, "reverse")
+    sleep(3)
+
+    print("Stopping...")
+    stop_all()
+
+except KeyboardInterrupt:
+    print("Interrupted")
+
+finally:
+    stop_all()
+    pi.stop()
