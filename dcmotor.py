@@ -18,4 +18,29 @@ def set_speed(speed):
 try:
     set_speed(0.7)  # 70% speed
 
-    print("Forward
+    print("Forward 3 seconds...")
+    motor_a.forward()
+    motor_b.forward()
+    sleep(3)
+
+    print("Stopping 2 seconds...")
+    motor_a.stop()
+    motor_b.stop()
+    sleep(2)
+
+    print("Reverse 3 seconds...")
+    motor_a.backward()
+    motor_b.backward()
+    sleep(3)
+
+    print("Stopping...")
+    motor_a.stop()
+    motor_b.stop()
+
+except KeyboardInterrupt:
+    print("Interrupted")
+
+finally:
+    motor_a.stop()
+    motor_b.stop()
+    set_speed(0)
