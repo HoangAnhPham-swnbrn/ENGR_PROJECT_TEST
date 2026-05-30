@@ -442,7 +442,7 @@ def update():
 
     # Nav segments under speedo
     canvas.create_text(lcx, lcy+95, text="NAVIGATION",
-                       fill="#333", font=("Arial",9), letter_spacing=1)
+                       fill="#333", font=("Arial",9))
     seg_x = lcx - 65
     segs = [("str",18),("str",18),("cur",15),("cur",15),("str",12)]
     for stype, sw in segs:
