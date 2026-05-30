@@ -99,6 +99,7 @@ state = {
     "fps_timer":       time.time(),
     "moving":          False,
     "last_frame":      None,
+    "auto_mode":       False,   # autonomous speed control
 }
 
 lock = threading.Lock()
@@ -395,11 +396,19 @@ def update():
     else:
         st_color, st_text, st_msg = "#30ff5a", "FAST", "Path clear"
 
+    # Autonomous mode — override speed automatically
+    auto_mode = state["auto_mode"]
+    if auto_mode and gear == "D":
+        if forced or dist < STOP_DISTANCE:
+            spd = 0; braking = True
+        elif dist < SLOW_DISTANCE:
+            spd = max(0, min(spd, 40))   # cap at 40 km/h
+            if spd < 40: spd = min(40, spd + ACCEL)
+        else:
+            spd = min(60, spd + ACCEL)   # cruise to 60 km/h
+
     # Save state
     state.update({
-        "speed":state["speed"] if ('w' not in keys_held and 'up' not in keys_held and
-                                    's' not in keys_held and 'down' not in keys_held and
-                                    ' ' not in keys_held) else spd,
         "speed":        spd,
         "steer":        steer,
         "braking":      braking,
@@ -440,38 +449,39 @@ def update():
                            font=("Arial",size,"bold"))
         gx += 40
 
-    # Nav segments under speedo
-    canvas.create_text(lcx, lcy+95, text="NAVIGATION",
-                       fill="#333", font=("Arial",9))
-    seg_x = lcx - 65
-    segs = [("str",18),("str",18),("cur",15),("cur",15),("str",12)]
-    for stype, sw in segs:
-        color = "#2ecc40" if stype=="str" else "#f0a500"
-        canvas.create_rectangle(seg_x, lcy+108, seg_x+sw, lcy+115,
-                                fill=color, outline="")
-        seg_x += sw + 5
-    canvas.create_text(lcx, lcy+128, text="Curve ahead · 120m",
+    # Divider
+    canvas.create_line(lcx-100, lcy+80, lcx+100, lcy+80, fill="#1c1c1c", width=1)
+
+    # Nav segments
+    canvas.create_text(lcx, lcy+93, text="NAVIGATION", fill="#333", font=("Arial",9))
+    seg_x = lcx - 62
+    for stype, sw in [("str",16),("str",16),("cur",13),("cur",13),("str",11)]:
+        col = "#2ecc40" if stype=="str" else "#f0a500"
+        canvas.create_rectangle(seg_x, lcy+104, seg_x+sw, lcy+110, fill=col, outline="")
+        seg_x += sw + 4
+    canvas.create_text(lcx, lcy+122, text="Curve ahead · 120m",
                        fill="#444", font=("Arial",10))
 
-    # Path status
-    canvas.create_text(lcx, lcy+148, text="PATH STATUS",
-                       fill="#333", font=("Arial",9))
+    # Divider
+    canvas.create_line(lcx-100, lcy+134, lcx+100, lcy+134, fill="#1c1c1c", width=1)
 
-    # Path status driven by YOLO detections
+    # Path status
+    canvas.create_text(lcx, lcy+146, text="PATH STATUS", fill="#333", font=("Arial",9))
     if dets:
         high = next((d for d in dets if d["danger"]=="high"), dets[0])
-        if high["danger"]=="high":
-            ps_text  = f"⛔ {high['label']} detected"
-            ps_color = "#e74c3c"
-        else:
-            ps_text  = f"⚠ {high['label']} nearby"
-            ps_color = "#f0a500"
+        ps_text  = f"⛔ {high['label']}" if high["danger"]=="high" else f"⚠ {high['label']}"
+        ps_color = "#e74c3c" if high["danger"]=="high" else "#f0a500"
     else:
         ps_text  = "● " + st_msg
         ps_color = st_color
-
-    canvas.create_text(lcx, lcy+168, text=ps_text,
+    canvas.create_text(lcx, lcy+163, text=ps_text,
                        fill=ps_color, font=("Arial",13,"bold"))
+
+    # Auto mode indicator
+    am_color = "#2ecc40" if auto_mode else "#333"
+    am_text  = "AUTO: ON" if auto_mode else "AUTO: OFF"
+    canvas.create_text(lcx, lcy+182, text=am_text,
+                       fill=am_color, font=("Arial",10,"bold"))
 
     # ── MIDDLE — Road graphic + Camera ────────────────────────
     mx, my, mw, mh = 430, 60, 540, 680
@@ -592,7 +602,8 @@ def update():
 
     # Status bar bottom
     canvas.create_rectangle(0,H-45,W,H, fill="#0a0a0a", outline="#1c1c1c")
-    canvas.create_text(100, H-22, text=f"Status: {st_text}",
+    auto_label = "  [AUTO]" if auto_mode else ""
+    canvas.create_text(100, H-22, text=f"Status: {st_text}{auto_label}",
                        fill=st_color, font=("Arial",13,"bold"), anchor="w")
     canvas.create_text(350, H-22, text=f"Distance: {dist:.0f}cm | Zone: {zone}",
                        fill="#555", font=("Arial",11), anchor="w")
@@ -622,7 +633,13 @@ def set_gear(g):
     if g in ("P","N"):
         state["speed"] = 0
 
+def toggle_auto(e=None):
+    state["auto_mode"] = not state["auto_mode"]
+    if state["auto_mode"]:
+        state["gear"] = "D"
+
 root.bind('h', toggle_haz)
+root.bind('m', toggle_auto)
 root.bind('z', toggle_ind_left)
 root.bind('x', toggle_ind_right)
 root.bind('p', lambda e: set_gear('P'))
