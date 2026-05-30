@@ -16,6 +16,12 @@ import numpy as np
 from gpiozero import DistanceSensor
 from picamera2 import Picamera2
 from ultralytics import YOLO
+try:
+    from PIL import Image, ImageTk
+    PIL_OK = True
+except ImportError:
+    PIL_OK = False
+    print("⚠️  PIL not found. Run: pip install pillow --break-system-packages")
 
 # ── Constants ─────────────────────────────────────────────────
 TRIGGER_PIN   = 5
@@ -314,7 +320,7 @@ def draw_road_graphic(cx, cy, w, h, road_off, side_off, steer, braking, moving):
 
 def zone_pill_color(zone):
     return {"CRITICAL":"#e74c3c","NEAR":"#f0a500","MID":"#4a9eff",
-            "FAR":"#2ecc40","OUT_OF_RANGE":"#555"}.get(zone,"#2ecc40")
+            "FAR":"#2ecc40","CLEAR":"#555"}.get(zone,"#2ecc40")
 
 # ── Main update loop ──────────────────────────────────────────
 ACCEL   = 2
@@ -383,29 +389,42 @@ def update():
     forced = now < state["stop_until"]
 
     zone = ("CRITICAL" if dist<=20 else "NEAR" if dist<=50
-            else "MID" if dist<=150 else "FAR" if dist<=300 else "OUT_OF_RANGE")
+            else "MID" if dist<=150 else "FAR" if dist<=300 else "CLEAR")
 
     person = state["person"]
     dets   = state["detections"]
 
     if forced or (person and dist < STOP_DISTANCE) or dist < STOP_DISTANCE:
         st_color, st_text, st_msg = "#ff3b30", "STOP", "Obstacle detected"
-        spd = 0; braking = True
+        # Smooth emergency stop — ramp down fast but not instant
+        spd = max(0, spd - BRAKE)
+        braking = True
     elif dist < SLOW_DISTANCE or (person and dist < SLOW_DISTANCE):
         st_color, st_text, st_msg = "#ffd60a", "SLOW", "Object nearby"
     else:
         st_color, st_text, st_msg = "#30ff5a", "FAST", "Path clear"
 
-    # Autonomous mode — override speed automatically
+    # Autonomous mode — smooth speed control based on zone
     auto_mode = state["auto_mode"]
     if auto_mode and gear == "D":
-        if forced or dist < STOP_DISTANCE:
-            spd = 0; braking = True
-        elif dist < SLOW_DISTANCE:
-            spd = max(0, min(spd, 40))   # cap at 40 km/h
-            if spd < 40: spd = min(40, spd + ACCEL)
-        else:
-            spd = min(60, spd + ACCEL)   # cruise to 60 km/h
+        # Target speed per zone
+        if forced or zone == "CRITICAL":
+            target = 0
+        elif zone == "NEAR":
+            target = 40
+        elif zone == "MID":
+            target = 60
+        elif zone == "FAR":
+            target = 80
+        else:  # CLEAR
+            target = 100
+
+        # Smooth transition — ramp up or down gradually
+        if spd < target:
+            spd = min(target, spd + ACCEL)       # accelerate smoothly
+        elif spd > target:
+            spd = max(target, spd - DECEL)       # decelerate smoothly
+        braking = spd < state["speed"]           # braking if slowing down
 
     # Save state
     state.update({
@@ -497,18 +516,25 @@ def update():
                             fill="#000", outline="#1e3a4f", width=1)
 
     frame = state.get("last_frame")
-    if frame is not None:
+    if frame is not None and PIL_OK:
         try:
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_rgb     = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_resized = cv2.resize(frame_rgb, (mw, cam_h))
-            from PIL import Image, ImageTk
             img = ImageTk.PhotoImage(Image.fromarray(frame_resized))
-            canvas._cam_img = img  # keep reference
+            canvas._cam_img = img   # must keep reference or GC kills it
             canvas.create_image(mx, cam_y, anchor="nw", image=img)
-        except Exception:
+        except Exception as e:
             canvas.create_text(mx+mw//2, cam_y+cam_h//2,
-                              text="Camera loading...",
-                              fill="#555", font=("Arial",12))
+                              text=f"Camera error: {e}",
+                              fill="#e74c3c", font=("Arial",10))
+    elif not PIL_OK:
+        canvas.create_text(mx+mw//2, cam_y+cam_h//2,
+                          text="Install: pip install pillow",
+                          fill="#e74c3c", font=("Arial",11))
+    else:
+        canvas.create_text(mx+mw//2, cam_y+cam_h//2,
+                          text="Camera loading...",
+                          fill="#555", font=("Arial",12))
 
     # YOLO LIVE label + FPS
     canvas.create_text(mx+10, cam_y+15,
@@ -602,7 +628,12 @@ def update():
 
     # Status bar bottom
     canvas.create_rectangle(0,H-45,W,H, fill="#0a0a0a", outline="#1c1c1c")
-    auto_label = "  [AUTO]" if auto_mode else ""
+    if auto_mode:
+        zone_speeds = {"CRITICAL":0,"NEAR":40,"MID":60,"FAR":80,"CLEAR":100}
+        tgt = zone_speeds.get(zone, 60)
+        auto_label = f"  [AUTO → {tgt} km/h]"
+    else:
+        auto_label = ""
     canvas.create_text(100, H-22, text=f"Status: {st_text}{auto_label}",
                        fill=st_color, font=("Arial",13,"bold"), anchor="w")
     canvas.create_text(350, H-22, text=f"Distance: {dist:.0f}cm | Zone: {zone}",
@@ -647,12 +678,7 @@ root.bind('n', lambda e: set_gear('N'))
 root.bind('r', lambda e: set_gear('R'))
 root.bind('g', lambda e: set_gear('D'))
 
-# ── PIL check ────────────────────────────────────────────────
-try:
-    from PIL import Image, ImageTk
-    print("✅ PIL available — camera will display")
-except ImportError:
-    print("⚠️  PIL not found. Install: pip install pillow --break-system-packages")
+
 
 # ── Cleanup + run ─────────────────────────────────────────────
 def on_close():
